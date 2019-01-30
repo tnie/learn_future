@@ -2,9 +2,33 @@
 #include <future>
 #include <thread>
 #include <chrono>
+#include "basic.h"
 using namespace std;
 
-int main()
+// 因为 vcpkg 链接了多余的某些库，且在 msvc 中缺失以下依赖
+#pragma comment(lib, "wldap32.lib" )
+#pragma comment(lib, "crypt32.lib" )
+#pragma comment(lib, "Ws2_32.lib")
+
+void folly_future()
+{
+    using namespace niel::async;
+    add(1, 2, [](int s1) {
+        add(s1, 3, [](int s2) {
+            cout << "sum is:" << s2 << endl;
+        });
+    });
+
+    using namespace niel::future;
+    auto future = add(1, 2).thenValue([](int s1) {
+        add(s1, 4).thenValue([](int s2){
+            cout << "sum is:" << s2 << endl;
+        });
+    });
+}
+
+
+void std_future()
 {
     auto t1 = std::chrono::steady_clock::now();
     auto task = std::async( /*launch::deferred,*/   []() {
@@ -29,5 +53,11 @@ int main()
     task.get();
     auto t2 = std::chrono::steady_clock::now();
     cout << std::chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << endl;
+}
+
+int main()
+{
+    folly_future();
+    getchar();
     return 0;
 }
