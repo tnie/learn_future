@@ -10,6 +10,8 @@ future 不支持拷贝构造，但支持移动构造。
 
 # folly/future
 
+> Folly is a library of C++14 components designed with practicality and efficiency in mind.
+> 
 > Be aware that Folly is a 64-bit only library.
 
 关于异步回调形式的接口 `int async_get(string key, std::function<void(GetReply)> callback);`，[folly/Future 手册][3] 描述如下：
@@ -26,7 +28,8 @@ future 不支持拷贝构造，但支持移动构造。
 
 通过 `vcpkg install folly:x64-windows` 安装 folly，因为系统同时安装了多个版本的 msvc，所以其默认使用的 vc2017 编译。
 
-在 vc2015 中使用时碰到以下问题，但在 vc2017 中却能够编译通过。是因为 vc2017 使用的运行时更新吗？可是 vc2015 和 vc2017 不是说二进制兼容的吗？！
+在 vc2015 中使用时碰到以下问题，但在 vc2017 中却能够编译通过。
+
 ```
 error LNK2019: 无法解析的外部符号 "void * __cdecl operator new(unsigned __int64,enum std::align_val_t)
 error LNK2001: 无法解析的外部符号 "void * __cdecl operator new(unsigned __int64,enum st
@@ -34,6 +37,32 @@ error LNK2019: 无法解析的外部符号 "void __cdecl operator delete(void *,
 error LNK2001: 无法解析的外部符号 "void __cdecl operator delete(void *,unsigned __int64
 error LNK2001: 无法解析的外部符号 "void __cdecl operator delete(void *,unsigned __int64,enum std::alig
 ```
+
+是因为 vc2017 使用的运行时新吗？ ~~可是 vc2015 和 vc2017 不是说二进制兼容的吗~~？！ ~~是因为 vc2107 支持 C++17 新标准，而 vc2015 不支持~~ 和新标准有关：[new 表达式][9] 和定义在 `<new>` 头文件中 [operator new, operator new[]][10] 函数是两回事
+
+```cpp
+// 虽然是老面孔的单词 new/delete，但却是函数，且后两者是新标准 C++17 内容！
+void* operator new  ( std::size_t count );				// (1)	
+void* operator new[]( std::size_t count );				// (2)	
+void* operator new  ( std::size_t count, std::align_val_t al);		// (3)	(C++17 起)
+void* operator new[]( std::size_t count, std::align_val_t al);		// (4)	(C++17 起)
+```
+
+但并非通过 v141 使用新特性<sup>1</sup>封装库之后就一定不能使用 v140 调用：test.lib 和 call_test.exe：
+- test.lib 内部使用了 `std::variant` C++17 类型，使用 v141 编译成动态库；
+- call_test.lib 使用 v140 链接前者的导入库，执行时调用前者的动态库，输出正常； 
+
+关于 vc2015 以及 17 版本的二进制兼容：[C++ Binary Compatibility between Visual Studio 2015 and Visual Studio 2017][4]，其中明确提到了有两种场景是不保证（NOT guaranteed）其二进制兼容的。
+
+> 1. When static libraries or object files are compiled with the `/GL` compiler switch.
+> 
+> 2. When consuming libraries built with a **toolset** whose version is greater than the **toolset used to compile and link** the application. 
+
+我之前测试 vc2015 & 17 二进制兼容时，因为例子特别简单，所以巧合地（虽然 microsoft 不保证）两者二进制兼容。即便 test.lib & call_test.exe 前者使用了新标准特性，却依然能够正确输出。可是在 folly 库却失败了。
+
+sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特指 C++11 或 C++14 或 C++17 等
+
+### 小问题
 
 另外，因为 vcpkg 会自动链接 `$(VcpkgRoot)debug\lib\*.lib`（大多在项目中都用不到）引入多余的库，但却链接不全。需要
 ```cpp
@@ -45,13 +74,43 @@ error LNK2001: 无法解析的外部符号 "void __cdecl operator delete(void *,
 
 ## 解决思路
 
-卸载 folly 之后，指定 v140 工具集重新安装 `set(VCPKG_PLATFORM_TOOLSET v140)`。
+虽然说 folly 是 C++14 的库，但 vc2015 部分支持 C++14 特性，所以尝试之后再定，撞了南墙再回头。
+
+卸载 folly 之后，指定 v140 工具集重新安装 `set(VCPKG_PLATFORM_TOOLSET v140)`。安装 zlib 竟然失败了，失败了：错误情况与 [vcpkg issue #1833][5] 相同，~~解决方案竟然是 [改变 vc2017 的语言][6]。可是为什么不指定 toolset，使用默认的 v141 toolset 就没有问题呢~~？
+
+测试 vcpkg + vc2015 能否正确安装 zlib？
 
 ~~安装时，只安装 folly::future 试验能否避免多余依赖~~。folly 并不能像 boost 那样部分安装。
 
 卸载 boost `.\vcpkg.exe remove boost-vcpkg-helpers --recurse`
 
+不通过 vcpkg，使用 cmake 从头做起呢？作为最后的方案备选，暂不考虑。
+
+用 vc2017 & c++17(v141 toolset) 生成的链接库，一定不能在 vc2015(v140 toolset) 环境中调用吗？有的可以，有的不可以，也就是微软提到的 NOT guaranteed。
+
+## toolset
+
+老是在说工具集，我们在使用新版本 vc2017 打开 vc2015 的项目时，会接触到两个概念：Windows SDK Version, Platform Toolset。
+
+但两者是什么意义？有什么关联？
+
+[MSBuild Toolset (ToolsVersion)][7]（和 msvc toolset 近似，但应该不是同一概念）叙述：
+
+> MSBuild uses a Toolset of tasks, targets, and tools to build an application. Typically, a MSBuild Toolset includes a `microsoft.common.tasks` file, a `microsoft.common.targets` file, and **compilers** such as csc.exe and vbc.exe. Most Toolsets can be used to compile applications to more than one version of the .NET Framework and **more than one system platform**. 
+
+所以，toolset 至少会包含编译器、链接器等生成应用程序的关键工具，但 IDE 中语法检测、跳转与色彩主体等肯定不是。如此，那对于新标准的支持（eg vc2015 不支持 c++14）也要落到 toolset 上，所以使用 v140 toolset 的 vc2017 也无法使用 c++14 呗？ 
+
+> To change the target platform toolset, you must have the associated version of Visual Studio or the Windows Platform SDK installed. [来源][8]
+
+扩展阅读：[MSBuild (Visual C++)](https://docs.microsoft.com/zh-cn/cpp/build/msbuild-visual-cpp?view=vs-2017)
 
 [1]:https://zh.wikipedia.org/wiki/%E9%9D%A2%E6%9D%A1%E5%BC%8F%E4%BB%A3%E7%A0%81
 [2]:https://code.fb.com/developer-tools/futures-for-c-11-at-facebook/
 [3]:https://github.com/facebook/folly/blob/master/folly/docs/Futures.md
+[4]:https://docs.microsoft.com/en-us/cpp/porting/binary-compat-2015-2017?view=vs-2017
+[5]:https://github.com/Microsoft/vcpkg/issues/1833
+[6]:https://stackoverflow.com/a/43762131/6728820
+[7]:https://docs.microsoft.com/en-us/visualstudio/msbuild/msbuild-toolset-toolsversion?view=vs-2017
+[8]:https://docs.microsoft.com/zh-cn/cpp/build/how-to-modify-the-target-framework-and-platform-toolset?view=vs-2017
+[9]:https://zh.cppreference.com/w/cpp/language/new
+[10]:https://zh.cppreference.com/w/cpp/memory/new/operator_new
