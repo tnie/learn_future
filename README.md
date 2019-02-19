@@ -72,13 +72,27 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 #pragma comment(lib, "Ws2_32.lib")
 ```
 
-## 解决思路
+## 解决思路（无路可走）
 
 虽然说 folly 是 C++14 的库，但 vc2015 部分支持 C++14 特性，所以尝试之后再定，撞了南墙再回头。
 
-卸载 folly 之后，指定 v140 工具集重新安装 `set(VCPKG_PLATFORM_TOOLSET v140)`。安装 zlib 竟然失败了，失败了：错误情况与 [vcpkg issue #1833][5] 相同，~~解决方案竟然是 [改变 vc2017 的语言][6]。可是为什么不指定 toolset，使用默认的 v141 toolset 就没有问题呢~~？
+卸载 folly 之后，指定 v140 工具集重新安装 `set(VCPKG_PLATFORM_TOOLSET v140)`。安装 zlib 竟然失败了，失败了：错误情况与 [vcpkg issue #1833][5] 相同，但此 issue 中提到的 [改变 vc2017 的语言][6] 的方案并不能解决我的问题。
 
-测试 vcpkg + vc2015 能否正确安装 zlib？
+测试 vcpkg + vc2015 能否正确安装 zlib？在 [vcpkg issue #766][11] 中 [ras0219-msft][111] 提到
+
+> We don't currently have an easy, supported way to opt out of VS2017 (Using VS2015 when VS2017 is available). 
+
+给出的 set `VCPKG_PLATFORM_TOOLSET ` 的 workaround 也有大的缺陷：
+
+> This will work for CMake-based ports that don't use Ninja and possibly others. Notably, this will _not_ change `boost`.
+
+[jacobblock][112] 也提到了 vcpkg + vc2017 + v140 toolset 下 zlib 安装失败的问题：
+
+> I was basically setting `VCPKG_PLATFORM_TOOLSET` to v140 in my triplet file and getting an immediate build error with zlib. The build was still trying to be performed with VS2017 (and works if I don't specify the `VCPKG_PLATFORM_TOOLSET`). 
+> 
+> Forcing the bootstrap to find VS2015 instead of VS2017 fixed the error;
+
+仔细查看 vcpkg/buildtrees/zlib 下的日志，发现它是使用 Ninja 编译的，正中 vcpkg + vc2017 + v140 的例外！
 
 ~~安装时，只安装 folly::future 试验能否避免多余依赖~~。folly 并不能像 boost 那样部分安装。
 
@@ -87,6 +101,8 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 不通过 vcpkg，使用 cmake 从头做起呢？作为最后的方案备选，暂不考虑。
 
 用 vc2017 & c++17(v141 toolset) 生成的链接库，一定不能在 vc2015(v140 toolset) 环境中调用吗？有的可以，有的不可以，也就是微软提到的 NOT guaranteed。
+
+**结论**：老老实实地使用 vcpkg+vc2017+v141，想要 vcpkg+vc2017+v140 不现实，毕竟 vcpkg 安装项目好多都是使用的 Ninja。 
 
 ## toolset
 
@@ -114,3 +130,6 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 [8]:https://docs.microsoft.com/zh-cn/cpp/build/how-to-modify-the-target-framework-and-platform-toolset?view=vs-2017
 [9]:https://zh.cppreference.com/w/cpp/language/new
 [10]:https://zh.cppreference.com/w/cpp/memory/new/operator_new
+[11]:https://github.com/Microsoft/vcpkg/issues/766
+[111]:https://github.com/Microsoft/vcpkg/issues/766#issuecomment-285918864
+[112]:https://github.com/Microsoft/vcpkg/issues/766#issuecomment-356810721
