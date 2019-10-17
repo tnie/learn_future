@@ -82,7 +82,7 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 
 再结合之前的测试 demo，推测二进制兼容其实是保证的，只是如果接口定义（即头文件中的声明）存在差异，编译都失败了，谈二进制兼容没有意义。
 
-我打算跳坑了，因为“卸载 vc2017/2019；使用 vcpkg 安装 vc2015 的库；重新安装 vc2017/2019；安装 vc2019 的库” 操作反人类。先跳下去，撞了南墙再说， 还有 [同道中人](https://github.com/robotology-playground/robotology-additional-dependencies/issues/3#issuecomment-459981396)
+我打算跳坑了，因为 [vcpkg 不能完善地支持切换 IDE 版本][115]，而“卸载 vc2017/2019；使用 vcpkg 安装 vc2015 的库；重新安装 vc2017/2019；安装 vc2019 的库” 操作反人类。先跳下去，撞了南墙再说， 还有 [同道中人](https://github.com/robotology-playground/robotology-additional-dependencies/issues/3#issuecomment-459981396)
 
 ## 解决思路（无路可走）
 
@@ -147,3 +147,4 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 [112]:https://github.com/Microsoft/vcpkg/issues/766#issuecomment-356810721
 [113]:https://stackoverflow.com/questions/53185019/questions-about-binary-compatibility-between-visual-studio-2015-and-visual-stud
 [114]:https://stackoverflow.com/questions/53187152/is-the-official-binary-incompatibility-between-vs2017-and-vs2015-app-vs-dll-acc
+[115]:https://tnie.github.io/2018/12/10/vcpkg/
