@@ -72,6 +72,16 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 #pragma comment(lib, "Ws2_32.lib")
 ```
 
+##  Binary Compatibility
+
+此小节在 2019-10-17 新增
+
+《C++ Binary Compatibility between Visual Studio 2015 and Visual Studio 2017》 原贴在微软网站上已经找不到了，但在 Stack Overflow 上仍然可见到有关的 [描述][113] 和 [讨论][114] 。其 URL 下的文章已经更新到 vs2019，现在只提到了 `/GL` 的例外，去掉了第二点，但又没有明确地表示
+
+> This means that if you have third-party library that was built with Visual Studio ~~2015~~ 2017 or Visual Studio 2019, you don't have to recompile it in order to consume it from an application that is built with Visual Studio 2015 ~~2017 or Visual Studio 2019~~.
+
+再结合之前的测试 demo，推测二进制兼容其实是保证的，只是如果接口定义（即头文件中的声明）存在差异，编译都失败了，谈二进制兼容没有意义。
+
 ## 解决思路（无路可走）
 
 虽然说 folly 是 C++14 的库，但 vc2015 部分支持 C++14 特性，所以尝试之后再定，撞了南墙再回头。
@@ -133,3 +143,5 @@ sup1 此处特指 v140 不支持但 v141 支持的 C++ 语言特性，并非特�
 [11]:https://github.com/Microsoft/vcpkg/issues/766
 [111]:https://github.com/Microsoft/vcpkg/issues/766#issuecomment-285918864
 [112]:https://github.com/Microsoft/vcpkg/issues/766#issuecomment-356810721
+[113]:https://stackoverflow.com/questions/53185019/questions-about-binary-compatibility-between-visual-studio-2015-and-visual-stud
+[114]:https://stackoverflow.com/questions/53187152/is-the-official-binary-incompatibility-between-vs2017-and-vs2015-app-vs-dll-acc
