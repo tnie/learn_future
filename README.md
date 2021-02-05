@@ -4,9 +4,9 @@
 
 	比如 `future::wait_for` 定时等待函数不会启动 async 执行可调用对象。
 
-# future
+# std::future
 
-future 不支持拷贝构造，但支持移动构造。
+`std::future` 不支持拷贝构造，但支持移动构造。
 
 # folly/future
 
